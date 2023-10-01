@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>US Treasury Yield Curve</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body, svg {
+            font-family: 'Roboto', sans-serif;
+        }
+
+	body {
+            background-color: #e6f2e6; /* Light green resembling U.S. dollar bill color */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 0;
+        }
+
+	@font-face {
+          font-family: 'OneDance';
+          src: url('OneDance.ttf') format('truetype');
+	}
+
+	h1 {
+            font-family: 'OneDance', serif;
+            margin-bottom: 2rem;
+	    font-weight: normal;
+	    font-size: 48px;
+        }
+
+        @keyframes pulse {
+            0% { r: 3px; }
+            50% { r: 6px; }
+            100% { r: 3px; }
+        }
+
+        .line {
+            fill: none;
+            stroke: green;
+            stroke-width: 2px;
+        }
+
+        .dot {
+            fill: green;
+            stroke: green;
+            animation: pulse 1s infinite;
+        }
+
+        .tooltip {
+            font-size: 14px;
+            font-weight: 500;
+            color: green;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid green;
+            border-radius: 5px;
+            padding: 4px;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .axis text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+	body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    </style>
+</head>
+
+<body>
+
+	<h1>US Treasury Yields</h1>
+
+
+<script>
+
+    d3.json('/getYieldData').then(data => {
+
+    const margin = { top: 60, right: 60, bottom: 60, left: 60 };
+    const width = 960 - margin.left - margin.right;
+    const height = 500 - margin.top - margin.bottom;
+
+    const x = d3.scaleLog()
+        .domain([28, 365 * 30])
+        .range([0, width]);
+
+    const y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d.yield)])
+        .range([height, 0]);
+
+    const line = d3.line()
+        .x(d => x(d.duration))
+        .y(d => y(d.yield))
+        .curve(d3.curveMonotoneX);
+
+    const svg = d3.select("body")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+		    // Add the vertical line for hover effect
+const hoverLine = svg.append("line")
+    .attr("stroke", "black")
+    .attr("stroke-width", 1)
+    .style("display", "none");
+
+		    const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+
+    svg.append("path")
+        .datum(data)
+        .attr("class", "line")
+        .attr("d", line);
+
+    // Add dots at each data point
+		    svg.selectAll(".dot")
+    .data(data)
+    .enter().append("circle")
+    .attr("class", "dot")
+    .attr("cx", d => x(d.duration))
+    .attr("cy", d => y(d.yield))
+    .attr("r", 5)
+    .on("mouseover", function(event, d) {
+        // Show the hover line
+        hoverLine
+            .attr("x1", x(d.duration))
+            .attr("y1", y(d.yield))
+            .attr("x2", x(d.duration))
+            .attr("y2", height)
+            .style("display", null);
+
+        // Highlight the x-axis label
+        d3.select(`text[x="${x(d.duration)}"]`).attr("font-weight", "bold");
+
+        // Show the tooltip
+        tooltip.transition()
+            .duration(200)
+            .style("opacity", 1);
+        tooltip.html(`Yield: ${d.yield}%`)
+            .style("left", (event.pageX + 5) + "px")
+            .style("top", (event.pageY - 28) + "px");
+    })
+    .on("mouseout", function(d) {
+        hoverLine.style("display", "none");
+
+        // Remove highlighting from x-axis label
+        d3.select(`text[x="${x(d.duration)}"]`).attr("font-weight", null);
+
+        tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+    });
+
+
+    svg.append("g")
+        .attr("transform", "translate(0," + height + ")")
+        .call(d3.axisBottom(x).tickValues(data.map(d => d.duration)).tickFormat((d, i) => data[i].label));
+
+    svg.append("g")
+        .call(d3.axisLeft(y).ticks(5).tickFormat(d => `${d}%`));
+
+	    });
+
+</script>
+
+</body>
+</html>
